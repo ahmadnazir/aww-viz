@@ -1,3 +1,5 @@
+module Main exposing (..)
+
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on)
@@ -5,34 +7,45 @@ import Json.Decode as Decode
 import Mouse exposing (Position)
 
 
-
 main =
-  Html.program
-    { init = init
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    }
+    Html.program
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
+
 
 
 -- MODEL
 
 
 type alias Model =
-    { position : Position
+    { boxes : List Box
     , drag : Maybe Drag
     }
+
+
+type alias Box =
+    { position : Position
+    , id : Int
+    }
+
+
+type alias BoxId =
+    Int
 
 
 type alias Drag =
     { start : Position
     , current : Position
+    , id : Int
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-  ( Model (Position 210 40) Nothing, Cmd.none )
+    ( Model [ { id = 1, position = (Position 200 200) }, { id = 2, position = (Position 500 500) } ] Nothing, Cmd.none )
 
 
 
@@ -40,27 +53,40 @@ init =
 
 
 type Msg
-    = DragStart Position
+    = DragStart BoxId Position
     | DragAt Position
     | DragEnd Position
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  ( updateHelp msg model, Cmd.none )
+    ( updateHelp msg model, Cmd.none )
 
 
 updateHelp : Msg -> Model -> Model
-updateHelp msg ({position, drag} as model) =
-  case msg of
-    DragStart xy ->
-      Model position (Just (Drag xy xy))
+updateHelp msg ({ boxes, drag } as model) =
+    case msg of
+        DragStart id xy ->
+            { model | drag = Just (Drag xy xy id) }
 
-    DragAt xy ->
-      Model position (Maybe.map (\{start} -> Drag start xy) drag)
+        DragAt xy ->
+            { model | drag = Maybe.map (\{ start, id } -> Drag start xy id) drag }
 
-    DragEnd _ ->
-      Model (getPosition model) Nothing
+        DragEnd _ ->
+            { model | boxes = List.map (dragEnd model.drag) model.boxes, drag = Nothing }
+
+
+dragEnd : Maybe Drag -> Box -> Box
+dragEnd drag box =
+    case drag of
+        Nothing ->
+            box
+
+        Just { id, current} ->
+            if id == box.id then
+                { box | position = getPosition drag box }
+            else
+                box
 
 
 
@@ -69,67 +95,77 @@ updateHelp msg ({position, drag} as model) =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  case model.drag of
-    Nothing ->
-      Sub.none
+    case model.drag of
+        Nothing ->
+            Sub.none
 
-    Just _ ->
-      Sub.batch [ Mouse.moves DragAt, Mouse.ups DragEnd ]
+        Just _ ->
+            Sub.batch [ Mouse.moves DragAt, Mouse.ups DragEnd ]
 
 
 
 -- VIEW
 
 
-(=>) = (,)
+(=>) =
+    (,)
+
+
+viewBox : Maybe Drag -> Box -> Html Msg
+viewBox drag box =
+    let
+        realPosition =
+            getPosition drag box
+    in
+        div
+            [ onMouseDown box.id
+            , style
+                [ "background-color" => "#3C8D2F"
+                , "cursor" => "move"
+                , "width" => "100px"
+                , "height" => "100px"
+                , "border-radius" => "4px"
+                , "position" => "absolute"
+                , "left" => px realPosition.x
+                , "top" => px realPosition.y
+                , "color" => "white"
+                , "display" => "flex"
+                , "align-items" => "center"
+                , "justify-content" => "center"
+                ]
+            ]
+            [ text "Drag Me!"
+            ]
 
 
 view : Model -> Html Msg
 view model =
-  let
-    realPosition =
-      getPosition model
-  in
-    div
-      [ onMouseDown
-      , style
-          [ "background-color" => "#3C8D2F"
-          , "cursor" => "move"
-
-          , "width" => "100px"
-          , "height" => "100px"
-          , "border-radius" => "4px"
-          , "position" => "absolute"
-          , "left" => px realPosition.x
-          , "top" => px realPosition.y
-
-          , "color" => "white"
-          , "display" => "flex"
-          , "align-items" => "center"
-          , "justify-content" => "center"
-          ]
-      ]
-      [ text "Drag Me!"
-      ]
+    div []
+        (List.map (viewBox model.drag)
+            model.boxes
+        )
 
 
 px : Int -> String
 px number =
-  toString number ++ "px"
+    toString number ++ "px"
 
 
-getPosition : Model -> Position
-getPosition {position, drag} =
-  case drag of
-    Nothing ->
-      position
+getPosition : Maybe Drag -> Box -> Position
+getPosition drag box =
+    case drag of
+        Nothing ->
+            box.position
 
-    Just {start,current} ->
-      Position
-        (position.x + current.x - start.x)
-        (position.y + current.y - start.y)
+        Just { start, current, id } ->
+            if id == box.id then
+                Position
+                    (box.position.x + current.x - start.x)
+                    (box.position.y + current.y - start.y)
+            else
+                box.position
 
 
-onMouseDown : Attribute Msg
-onMouseDown =
-  on "mousedown" (Decode.map DragStart Mouse.position)
+onMouseDown : BoxId -> Attribute Msg
+onMouseDown id =
+    on "mousedown" (Decode.map (DragStart id) Mouse.position)

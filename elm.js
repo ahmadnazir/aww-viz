@@ -13004,18 +13004,17 @@ var _elm_lang$mouse$Mouse$subMap = F2(
 	});
 _elm_lang$core$Native_Platform.effectManagers['Mouse'] = {pkg: 'elm-lang/mouse', init: _elm_lang$mouse$Mouse$init, onEffects: _elm_lang$mouse$Mouse$onEffects, onSelfMsg: _elm_lang$mouse$Mouse$onSelfMsg, tag: 'sub', subMap: _elm_lang$mouse$Mouse$subMap};
 
-var _user$project$Main$getPosition = function (_p0) {
-	var _p1 = _p0;
-	var _p5 = _p1.position;
-	var _p2 = _p1.drag;
-	if (_p2.ctor === 'Nothing') {
-		return _p5;
-	} else {
-		var _p4 = _p2._0.start;
-		var _p3 = _p2._0.current;
-		return A2(_elm_lang$mouse$Mouse$Position, (_p5.x + _p3.x) - _p4.x, (_p5.y + _p3.y) - _p4.y);
-	}
-};
+var _user$project$Main$getPosition = F2(
+	function (drag, box) {
+		var _p0 = drag;
+		if (_p0.ctor === 'Nothing') {
+			return box.position;
+		} else {
+			var _p2 = _p0._0.start;
+			var _p1 = _p0._0.current;
+			return _elm_lang$core$Native_Utils.eq(_p0._0.id, box.id) ? A2(_elm_lang$mouse$Mouse$Position, (box.position.x + _p1.x) - _p2.x, (box.position.y + _p1.y) - _p2.y) : box.position;
+		}
+	});
 var _user$project$Main$px = function (number) {
 	return A2(
 		_elm_lang$core$Basics_ops['++'],
@@ -13027,51 +13026,89 @@ _user$project$Main_ops['=>'] = F2(
 	function (v0, v1) {
 		return {ctor: '_Tuple2', _0: v0, _1: v1};
 	});
+var _user$project$Main$dragEnd = F2(
+	function (drag, box) {
+		var _p3 = drag;
+		if (_p3.ctor === 'Nothing') {
+			return box;
+		} else {
+			return _elm_lang$core$Native_Utils.eq(_p3._0.id, box.id) ? _elm_lang$core$Native_Utils.update(
+				box,
+				{
+					position: A2(_user$project$Main$getPosition, drag, box)
+				}) : box;
+		}
+	});
 var _user$project$Main$Model = F2(
 	function (a, b) {
-		return {position: a, drag: b};
+		return {boxes: a, drag: b};
 	});
 var _user$project$Main$init = {
 	ctor: '_Tuple2',
 	_0: A2(
 		_user$project$Main$Model,
-		A2(_elm_lang$mouse$Mouse$Position, 210, 40),
+		{
+			ctor: '::',
+			_0: {
+				id: 1,
+				position: A2(_elm_lang$mouse$Mouse$Position, 200, 200)
+			},
+			_1: {
+				ctor: '::',
+				_0: {
+					id: 2,
+					position: A2(_elm_lang$mouse$Mouse$Position, 500, 500)
+				},
+				_1: {ctor: '[]'}
+			}
+		},
 		_elm_lang$core$Maybe$Nothing),
 	_1: _elm_lang$core$Platform_Cmd$none
 };
-var _user$project$Main$Drag = F2(
+var _user$project$Main$Box = F2(
 	function (a, b) {
-		return {start: a, current: b};
+		return {position: a, id: b};
+	});
+var _user$project$Main$Drag = F3(
+	function (a, b, c) {
+		return {start: a, current: b, id: c};
 	});
 var _user$project$Main$updateHelp = F2(
-	function (msg, _p6) {
-		var _p7 = _p6;
-		var _p12 = _p7.position;
-		var _p8 = msg;
-		switch (_p8.ctor) {
+	function (msg, _p4) {
+		var _p5 = _p4;
+		var _p10 = _p5;
+		var _p6 = msg;
+		switch (_p6.ctor) {
 			case 'DragStart':
-				var _p9 = _p8._0;
-				return A2(
-					_user$project$Main$Model,
-					_p12,
-					_elm_lang$core$Maybe$Just(
-						A2(_user$project$Main$Drag, _p9, _p9)));
+				var _p7 = _p6._1;
+				return _elm_lang$core$Native_Utils.update(
+					_p10,
+					{
+						drag: _elm_lang$core$Maybe$Just(
+							A3(_user$project$Main$Drag, _p7, _p7, _p6._0))
+					});
 			case 'DragAt':
-				return A2(
-					_user$project$Main$Model,
-					_p12,
-					A2(
-						_elm_lang$core$Maybe$map,
-						function (_p10) {
-							var _p11 = _p10;
-							return A2(_user$project$Main$Drag, _p11.start, _p8._0);
-						},
-						_p7.drag));
+				return _elm_lang$core$Native_Utils.update(
+					_p10,
+					{
+						drag: A2(
+							_elm_lang$core$Maybe$map,
+							function (_p8) {
+								var _p9 = _p8;
+								return A3(_user$project$Main$Drag, _p9.start, _p6._0, _p9.id);
+							},
+							_p5.drag)
+					});
 			default:
-				return A2(
-					_user$project$Main$Model,
-					_user$project$Main$getPosition(_p7),
-					_elm_lang$core$Maybe$Nothing);
+				return _elm_lang$core$Native_Utils.update(
+					_p10,
+					{
+						boxes: A2(
+							_elm_lang$core$List$map,
+							_user$project$Main$dragEnd(_p10.drag),
+							_p10.boxes),
+						drag: _elm_lang$core$Maybe$Nothing
+					});
 		}
 	});
 var _user$project$Main$update = F2(
@@ -13089,8 +13126,8 @@ var _user$project$Main$DragAt = function (a) {
 	return {ctor: 'DragAt', _0: a};
 };
 var _user$project$Main$subscriptions = function (model) {
-	var _p13 = model.drag;
-	if (_p13.ctor === 'Nothing') {
+	var _p11 = model.drag;
+	if (_p11.ctor === 'Nothing') {
 		return _elm_lang$core$Platform_Sub$none;
 	} else {
 		return _elm_lang$core$Platform_Sub$batch(
@@ -13105,66 +13142,74 @@ var _user$project$Main$subscriptions = function (model) {
 			});
 	}
 };
-var _user$project$Main$DragStart = function (a) {
-	return {ctor: 'DragStart', _0: a};
-};
-var _user$project$Main$onMouseDown = A2(
-	_elm_lang$html$Html_Events$on,
-	'mousedown',
-	A2(_elm_lang$core$Json_Decode$map, _user$project$Main$DragStart, _elm_lang$mouse$Mouse$position));
-var _user$project$Main$view = function (model) {
-	var realPosition = _user$project$Main$getPosition(model);
+var _user$project$Main$DragStart = F2(
+	function (a, b) {
+		return {ctor: 'DragStart', _0: a, _1: b};
+	});
+var _user$project$Main$onMouseDown = function (id) {
 	return A2(
-		_elm_lang$html$Html$div,
-		{
-			ctor: '::',
-			_0: _user$project$Main$onMouseDown,
-			_1: {
+		_elm_lang$html$Html_Events$on,
+		'mousedown',
+		A2(
+			_elm_lang$core$Json_Decode$map,
+			_user$project$Main$DragStart(id),
+			_elm_lang$mouse$Mouse$position));
+};
+var _user$project$Main$viewBox = F2(
+	function (drag, box) {
+		var realPosition = A2(_user$project$Main$getPosition, drag, box);
+		return A2(
+			_elm_lang$html$Html$div,
+			{
 				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$style(
-					{
-						ctor: '::',
-						_0: A2(_user$project$Main_ops['=>'], 'background-color', '#3C8D2F'),
-						_1: {
+				_0: _user$project$Main$onMouseDown(box.id),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$style(
+						{
 							ctor: '::',
-							_0: A2(_user$project$Main_ops['=>'], 'cursor', 'move'),
+							_0: A2(_user$project$Main_ops['=>'], 'background-color', '#3C8D2F'),
 							_1: {
 								ctor: '::',
-								_0: A2(_user$project$Main_ops['=>'], 'width', '100px'),
+								_0: A2(_user$project$Main_ops['=>'], 'cursor', 'move'),
 								_1: {
 									ctor: '::',
-									_0: A2(_user$project$Main_ops['=>'], 'height', '100px'),
+									_0: A2(_user$project$Main_ops['=>'], 'width', '100px'),
 									_1: {
 										ctor: '::',
-										_0: A2(_user$project$Main_ops['=>'], 'border-radius', '4px'),
+										_0: A2(_user$project$Main_ops['=>'], 'height', '100px'),
 										_1: {
 											ctor: '::',
-											_0: A2(_user$project$Main_ops['=>'], 'position', 'absolute'),
+											_0: A2(_user$project$Main_ops['=>'], 'border-radius', '4px'),
 											_1: {
 												ctor: '::',
-												_0: A2(
-													_user$project$Main_ops['=>'],
-													'left',
-													_user$project$Main$px(realPosition.x)),
+												_0: A2(_user$project$Main_ops['=>'], 'position', 'absolute'),
 												_1: {
 													ctor: '::',
 													_0: A2(
 														_user$project$Main_ops['=>'],
-														'top',
-														_user$project$Main$px(realPosition.y)),
+														'left',
+														_user$project$Main$px(realPosition.x)),
 													_1: {
 														ctor: '::',
-														_0: A2(_user$project$Main_ops['=>'], 'color', 'white'),
+														_0: A2(
+															_user$project$Main_ops['=>'],
+															'top',
+															_user$project$Main$px(realPosition.y)),
 														_1: {
 															ctor: '::',
-															_0: A2(_user$project$Main_ops['=>'], 'display', 'flex'),
+															_0: A2(_user$project$Main_ops['=>'], 'color', 'white'),
 															_1: {
 																ctor: '::',
-																_0: A2(_user$project$Main_ops['=>'], 'align-items', 'center'),
+																_0: A2(_user$project$Main_ops['=>'], 'display', 'flex'),
 																_1: {
 																	ctor: '::',
-																	_0: A2(_user$project$Main_ops['=>'], 'justify-content', 'center'),
-																	_1: {ctor: '[]'}
+																	_0: A2(_user$project$Main_ops['=>'], 'align-items', 'center'),
+																	_1: {
+																		ctor: '::',
+																		_0: A2(_user$project$Main_ops['=>'], 'justify-content', 'center'),
+																		_1: {ctor: '[]'}
+																	}
 																}
 															}
 														}
@@ -13175,16 +13220,24 @@ var _user$project$Main$view = function (model) {
 									}
 								}
 							}
-						}
-					}),
+						}),
+					_1: {ctor: '[]'}
+				}
+			},
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html$text('Drag Me!'),
 				_1: {ctor: '[]'}
-			}
-		},
-		{
-			ctor: '::',
-			_0: _elm_lang$html$Html$text('Drag Me!'),
-			_1: {ctor: '[]'}
-		});
+			});
+	});
+var _user$project$Main$view = function (model) {
+	return A2(
+		_elm_lang$html$Html$div,
+		{ctor: '[]'},
+		A2(
+			_elm_lang$core$List$map,
+			_user$project$Main$viewBox(model.drag),
+			model.boxes));
 };
 var _user$project$Main$main = _elm_lang$html$Html$program(
 	{init: _user$project$Main$init, view: _user$project$Main$view, update: _user$project$Main$update, subscriptions: _user$project$Main$subscriptions})();
@@ -13192,7 +13245,7 @@ var _user$project$Main$main = _elm_lang$html$Html$program(
 var Elm = {};
 Elm['Main'] = Elm['Main'] || {};
 if (typeof _user$project$Main$main !== 'undefined') {
-    _user$project$Main$main(Elm['Main'], 'Main', {"types":{"unions":{"Main.Msg":{"args":[],"tags":{"DragEnd":["Mouse.Position"],"DragAt":["Mouse.Position"],"DragStart":["Mouse.Position"]}}},"aliases":{"Mouse.Position":{"args":[],"type":"{ x : Int, y : Int }"}},"message":"Main.Msg"},"versions":{"elm":"0.18.0"}});
+    _user$project$Main$main(Elm['Main'], 'Main', {"types":{"unions":{"Main.Msg":{"args":[],"tags":{"DragEnd":["Mouse.Position"],"DragAt":["Mouse.Position"],"DragStart":["Main.BoxId","Mouse.Position"]}}},"aliases":{"Main.BoxId":{"args":[],"type":"Int"},"Mouse.Position":{"args":[],"type":"{ x : Int, y : Int }"}},"message":"Main.Msg"},"versions":{"elm":"0.18.0"}});
 }
 
 if (typeof define === "function" && define['amd'])
